@@ -1,0 +1,266 @@
+<title>One Mac, Live</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --border: #e1e6ef;
+    --text: #0f1941;
+    --muted: #5b6478;
+    --navy: #0f1941;
+    --blue: #0050ff;
+    --accent-grad: linear-gradient(90deg, #0050ff 0%, #7000ff 50%, #ff0087 100%);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 0 20px 80px;
+  }
+  header {
+    max-width: 900px;
+    margin: 0 auto 36px;
+    text-align: center;
+    padding: 28px 0 24px;
+    border-bottom: 3px solid transparent;
+    border-image: var(--accent-grad) 1;
+  }
+  .wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--navy);
+  }
+  .wordmark .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-grad);
+    display: inline-block;
+    margin: 0 1px 8px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 10px 0 4px; color: var(--navy); }
+  .tagline { color: var(--muted); font-size: 14px; }
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    color: #ff0057;
+    animation: blink 1.4s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff0057;
+    box-shadow: 0 0 0 0 rgba(255, 0, 87, 0.6);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0.3; }
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 0, 87, 0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(255, 0, 87, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 0, 87, 0); }
+  }
+  .grid {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid;
+    border-image: var(--accent-grad) 1;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(15, 25, 65, 0.06);
+  }
+  .label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .value {
+    font-size: 32px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--navy);
+  }
+  .sub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .visitor-bar {
+    max-width: 900px;
+    margin: 32px auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+  }
+  .visitor-side { font-size: 13px; color: var(--muted); text-align: center; }
+  .visitor-side b {
+    display: block;
+    font-size: 20px;
+    color: var(--navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .visitor-live { text-align: center; }
+  .visitor-live-num {
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    background: var(--accent-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .visitor-live-label {
+    margin-top: 4px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  footer {
+    max-width: 900px;
+    margin: 40px auto 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+
+<header>
+  <div class="wordmark">capgemini<span class="dot"></span>invent</div>
+  <h1>One Mac, Live</h1>
+  <div class="tagline">
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span
+    >Rahul Shaw's MacBook Air, on desk — reporting what it's doing right now.
+  </div>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">Processor load</div>
+    <div class="value" id="cpu">—</div>
+    <div class="sub" id="cpu-sub">—</div>
+  </div>
+  <div class="card">
+    <div class="label">Memory</div>
+    <div class="value" id="mem">—</div>
+    <div class="sub" id="mem-sub">—</div>
+  </div>
+  <div class="card">
+    <div class="label">Disk</div>
+    <div class="value" id="disk">—</div>
+    <div class="sub" id="disk-sub">—</div>
+  </div>
+  <div class="card">
+    <div class="label">Network</div>
+    <div class="value" id="net">—</div>
+    <div class="sub" id="net-sub">—</div>
+  </div>
+  <div class="card">
+    <div class="label">Uptime</div>
+    <div class="value" id="uptime">—</div>
+    <div class="sub" id="uptime-sub">&nbsp;</div>
+  </div>
+  <div class="card">
+    <div class="label">Hardware</div>
+    <div class="value" id="hw">—</div>
+    <div class="sub" id="hw-sub">—</div>
+  </div>
+</div>
+
+<div class="visitor-bar">
+  <div class="visitor-side">You are visitor<b id="your-number">—</b></div>
+  <div class="visitor-live">
+    <div class="visitor-live-num" id="concurrent">—</div>
+    <div class="visitor-live-label">watching live</div>
+  </div>
+  <div class="visitor-side">Total visitors<b id="total">—</b></div>
+</div>
+
+<footer>Refreshes every second.</footer>
+
+<script>
+function fmtUptime(sec) {
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+async function tick() {
+  try {
+    const res = await fetch("/api/stats", { cache: "no-store" });
+    const s = await res.json();
+
+    document.getElementById("cpu").textContent = s.cpu.load_pct + "%";
+    document.getElementById("cpu-sub").textContent =
+      `load avg ${s.cpu.load1} / ${s.cpu.load5} / ${s.cpu.load15}`;
+
+    document.getElementById("mem").textContent = s.memory.used_pct + "%";
+    document.getElementById("mem-sub").textContent =
+      `${s.memory.used_gb} / ${s.memory.total_gb} GB`;
+
+    document.getElementById("disk").textContent = s.disk.used_pct + "%";
+    document.getElementById("disk-sub").textContent =
+      `${s.disk.used_gb} / ${s.disk.total_gb} GB`;
+
+    document.getElementById("net").textContent = s.network.rx_kbps + " KB/s";
+    document.getElementById("net-sub").textContent =
+      `down ${s.network.rx_kbps} · up ${s.network.tx_kbps} KB/s`;
+
+    document.getElementById("uptime").textContent = fmtUptime(s.uptime_seconds);
+
+    document.getElementById("hw").textContent = s.hardware.chip;
+    document.getElementById("hw-sub").textContent =
+      `${s.hardware.cores} cores · ${s.hardware.ram_gb} GB RAM`;
+
+    document.getElementById("your-number").textContent = s.visitor.your_number;
+    document.getElementById("concurrent").textContent = s.visitor.concurrent;
+    document.getElementById("total").textContent = s.visitor.total;
+  } catch (e) {
+    // next tick will retry
+  }
+}
+
+tick();
+setInterval(tick, 1000);
+</script>
