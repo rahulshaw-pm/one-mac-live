@@ -422,6 +422,7 @@ let gameId = null;
 let mySymbol = null;
 let joinTimer = null;
 let stateTimer = null;
+let roundInProgress = false;
 
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("game-status");
@@ -499,6 +500,7 @@ async function pollGameState() {
     renderBoard(s.board, !s.winner && s.turn === mySymbol && s.opponent_connected);
     updateTurnHighlight(s.winner ? null : s.turn);
     updateScore(s.score);
+    roundInProgress = !s.winner && s.opponent_connected;
 
     const opponentSymbol = mySymbol === "X" ? "O" : "X";
 
@@ -549,6 +551,9 @@ async function playAgain() {
 }
 
 async function leaveGame() {
+  if (roundInProgress && !confirm("Leave the match? The round is still in progress and this will count as forfeiting.")) {
+    return;
+  }
   clearInterval(joinTimer);
   clearInterval(stateTimer);
   if (gameId) {
@@ -556,6 +561,7 @@ async function leaveGame() {
   }
   gameId = null;
   mySymbol = null;
+  roundInProgress = false;
   boardEl.innerHTML = "";
   chipA.classList.remove("active-turn");
   chipB.classList.remove("active-turn");
