@@ -252,9 +252,9 @@ class Handler(BaseHTTPRequestHandler):
         return new_sid, new_sid
 
     def _send_json(self, payload, new_sid):
-        body = json.dumps(payload).encode()
+        body = json.dumps(payload).encode("utf-8")
         self.send_response(200)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         if new_sid:
             self.send_header("Set-Cookie", f"sid={new_sid}; Path=/; HttpOnly")
@@ -287,9 +287,9 @@ class Handler(BaseHTTPRequestHandler):
                 "uptime_seconds": get_uptime(),
                 "hardware": get_hardware(),
                 "visitor": get_visitor(sid),
-            }).encode()
+            }).encode("utf-8")
             self.send_response(200)
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             if new_sid:
                 self.send_header("Set-Cookie", f"sid={new_sid}; Path=/; HttpOnly")
@@ -298,9 +298,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/":
-            body = INDEX_HTML.encode()
+            body = INDEX_HTML.encode("utf-8")
             self.send_response(200)
-            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             if new_sid:
                 self.send_header("Set-Cookie", f"sid={new_sid}; Path=/; HttpOnly")
