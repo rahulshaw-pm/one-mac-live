@@ -280,6 +280,50 @@
     gap: 10px;
     justify-content: center;
   }
+  .leaderboard-list {
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+  }
+  .leaderboard-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .leaderboard-list li:last-child { border-bottom: none; }
+  .leaderboard-rank {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    width: 22px;
+    text-align: center;
+  }
+  .leaderboard-list li:nth-child(1) .leaderboard-rank { color: #ff0087; }
+  .leaderboard-list li:nth-child(2) .leaderboard-rank { color: var(--blue); }
+  .leaderboard-list li:nth-child(3) .leaderboard-rank { color: #7000ff; }
+  .leaderboard-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--navy);
+  }
+  .leaderboard-wins {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--navy);
+  }
+  .leaderboard-empty {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 10px 0 0;
+  }
 </style>
 
 <header>
@@ -367,6 +411,12 @@
   </div>
 </div>
 
+<div class="game-section">
+  <h2>Leaderboard</h2>
+  <div class="game-status">Most wins across all visitors, all time.</div>
+  <ol class="leaderboard-list" id="leaderboard-list"></ol>
+</div>
+
 <footer>Refreshes every second.</footer>
 
 <script>
@@ -416,6 +466,32 @@ async function tick() {
 
 tick();
 setInterval(tick, 1000);
+
+// --- Leaderboard, wins across all visitors ---
+const leaderboardEl = document.getElementById("leaderboard-list");
+
+async function tickLeaderboard() {
+  try {
+    const res = await fetch("/api/leaderboard", { cache: "no-store" });
+    const s = await res.json();
+    if (!s.leaderboard || !s.leaderboard.length) {
+      leaderboardEl.innerHTML = '<li class="leaderboard-empty">No wins recorded yet — be the first.</li>';
+      return;
+    }
+    leaderboardEl.innerHTML = s.leaderboard.map((entry, i) => `
+      <li>
+        <span class="leaderboard-rank">${i + 1}</span>
+        <span class="leaderboard-name">${entry.label}</span>
+        <span class="leaderboard-wins">${entry.wins}</span>
+      </li>
+    `).join("");
+  } catch (e) {
+    // next tick will retry
+  }
+}
+
+tickLeaderboard();
+setInterval(tickLeaderboard, 3000);
 
 // --- Tic-Tac-Toe, live between visitors ---
 let gameId = null;

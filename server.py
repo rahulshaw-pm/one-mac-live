@@ -33,6 +33,46 @@ STATE = {
     "last_net": None,
 }
 
+WINS_FILE = Path(__file__).parent / "wins.json"
+WINS_LOCK = threading.Lock()
+LEADERBOARD_SIZE = 10
+
+
+def load_wins():
+    try:
+        data = json.loads(WINS_FILE.read_text())
+        if isinstance(data, dict) and isinstance(data.get("players"), dict):
+            return data
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    return {"next_id": 1, "players": {}}
+
+
+def save_wins():
+    tmp = WINS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(WINS))
+    tmp.replace(WINS_FILE)
+
+
+WINS = load_wins()
+
+
+def record_win(sid):
+    with WINS_LOCK:
+        entry = WINS["players"].get(sid)
+        if entry is None:
+            entry = {"id": WINS["next_id"], "wins": 0}
+            WINS["next_id"] += 1
+            WINS["players"][sid] = entry
+        entry["wins"] += 1
+        save_wins()
+
+
+def get_leaderboard():
+    with WINS_LOCK:
+        ranked = sorted(WINS["players"].values(), key=lambda e: e["wins"], reverse=True)
+        return [{"label": f"Player #{e['id']}", "wins": e["wins"]} for e in ranked[:LEADERBOARD_SIZE]]
+
 WIN_LINES = [(0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7), (2, 5, 8), (0, 4, 8), (2, 4, 6)]
 OPPONENT_TIMEOUT = 6  # seconds without a poll before we consider a player gone
 
@@ -217,6 +257,7 @@ def game_state(sid, gid):
 
 
 def game_move(sid, gid, index):
+    winner_sid = None
     with GAME_LOCK:
         game = GAME["games"].get(gid)
         if not game or sid not in game["players"]:
@@ -230,9 +271,13 @@ def game_move(sid, gid, index):
         game["winner"] = check_winner(game["board"])
         if game["winner"] in ("X", "O"):
             game["score"][game["winner"]] += 1
+            winner_sid = next(s for s, sym in game["players"].items() if sym == game["winner"])
         game["turn"] = "O" if symbol == "X" else "X"
         game["last_seen"][sid] = time.time()
-        return {"ok": True}
+
+    if winner_sid:
+        record_win(winner_sid)
+    return {"ok": True}
 
 
 def game_reset(sid, gid):
@@ -292,6 +337,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/game/state":
             gid = query.get("game_id", [None])[0]
             self._send_json(game_state(sid, gid), new_sid)
+            return
+
+        if path == "/api/leaderboard":
+            self._send_json({"leaderboard": get_leaderboard()}, new_sid)
             return
 
         self.path = path  # normalize for the legacy checks below

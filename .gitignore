@@ -3,3 +3,5 @@ __pycache__/
 server.log
 visits.count
 visits.tmp
+wins.json
+wins.tmp
