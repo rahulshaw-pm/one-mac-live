@@ -203,6 +203,44 @@
     color: var(--navy);
     border: 1px solid var(--border);
   }
+  .matchup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .player-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    color: var(--muted);
+  }
+  .player-chip .player-icon { color: var(--muted); }
+  #chip-a .player-icon { color: var(--blue); }
+  #chip-b .player-icon { color: #ff0087; }
+  .player-chip .player-name { font-size: 13px; font-weight: 600; color: var(--navy); }
+  .player-chip .you-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .player-chip.active-turn {
+    border-color: var(--border);
+    background: var(--bg);
+  }
+  .vs {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
   .board {
     display: grid;
     grid-template-columns: repeat(3, 74px);
@@ -282,7 +320,7 @@
 </div>
 
 <div class="game-section">
-  <h2>🎮 Tic-Tac-Toe, Live</h2>
+  <h2>Tic Tac Toe</h2>
   <div class="game-status" id="game-status">Play a quick match against whoever else is watching this page right now.</div>
 
   <div id="game-lobby">
@@ -290,6 +328,19 @@
   </div>
 
   <div id="game-play" style="display:none;">
+    <div class="matchup" id="matchup">
+      <div class="player-chip" id="chip-a">
+        <svg class="player-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg>
+        <span class="player-name">Player A</span>
+        <span class="you-badge" id="you-a" style="display:none;">You</span>
+      </div>
+      <div class="vs">vs</div>
+      <div class="player-chip" id="chip-b">
+        <svg class="player-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg>
+        <span class="player-name">Player B</span>
+        <span class="you-badge" id="you-b" style="display:none;">You</span>
+      </div>
+    </div>
     <div class="board" id="board"></div>
     <div class="game-controls">
       <button class="game-btn secondary" id="again-btn" style="display:none;" onclick="playAgain()">Play again</button>
@@ -360,6 +411,24 @@ const lobbyEl = document.getElementById("game-lobby");
 const playEl = document.getElementById("game-play");
 const findBtn = document.getElementById("find-btn");
 const againBtn = document.getElementById("again-btn");
+const chipA = document.getElementById("chip-a");
+const chipB = document.getElementById("chip-b");
+const youA = document.getElementById("you-a");
+const youB = document.getElementById("you-b");
+
+function playerName(symbol) {
+  return symbol === "X" ? "Player A" : "Player B";
+}
+
+function setupMatchup() {
+  youA.style.display = mySymbol === "X" ? "inline" : "none";
+  youB.style.display = mySymbol === "O" ? "inline" : "none";
+}
+
+function updateTurnHighlight(turn) {
+  chipA.classList.toggle("active-turn", turn === "X");
+  chipB.classList.toggle("active-turn", turn === "O");
+}
 
 function renderBoard(cells, clickable) {
   boardEl.innerHTML = "";
@@ -384,6 +453,7 @@ async function findOpponent() {
       clearInterval(joinTimer);
       gameId = s.game_id;
       mySymbol = s.symbol;
+      setupMatchup();
       lobbyEl.style.display = "none";
       playEl.style.display = "block";
       pollGameState();
@@ -400,6 +470,9 @@ async function pollGameState() {
     if (s.error) return;
 
     renderBoard(s.board, !s.winner && s.turn === mySymbol && s.opponent_connected);
+    updateTurnHighlight(s.winner ? null : s.turn);
+
+    const opponentSymbol = mySymbol === "X" ? "O" : "X";
 
     if (s.winner === "draw") {
       statusEl.className = "game-status";
@@ -408,17 +481,17 @@ async function pollGameState() {
     } else if (s.winner) {
       const won = s.winner === mySymbol;
       statusEl.className = "game-status " + (won ? "win" : "lose");
-      statusEl.textContent = won ? "You win! 🎉" : "You lose — opponent got three in a row.";
+      statusEl.textContent = won ? "You win!" : `${playerName(s.winner)} wins this round.`;
       againBtn.style.display = "inline-block";
     } else if (!s.opponent_connected) {
       statusEl.className = "game-status";
-      statusEl.textContent = "Opponent disconnected. Leave and find a new match.";
+      statusEl.textContent = `${playerName(opponentSymbol)} disconnected. Leave and find a new match.`;
       againBtn.style.display = "none";
     } else {
       statusEl.className = "game-status";
       statusEl.textContent = s.turn === mySymbol
-        ? `Your turn — you're ${mySymbol}`
-        : `Waiting on opponent (${s.turn === "X" ? "X" : "O"})…`;
+        ? "Your turn!"
+        : `Waiting on ${playerName(s.turn)}…`;
       againBtn.style.display = "none";
     }
   } catch (e) {
@@ -456,6 +529,10 @@ async function leaveGame() {
   gameId = null;
   mySymbol = null;
   boardEl.innerHTML = "";
+  chipA.classList.remove("active-turn");
+  chipB.classList.remove("active-turn");
+  youA.style.display = "none";
+  youB.style.display = "none";
   playEl.style.display = "none";
   lobbyEl.style.display = "block";
   findBtn.disabled = false;
