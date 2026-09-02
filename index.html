@@ -235,11 +235,25 @@
     border-color: var(--border);
     background: var(--bg);
   }
-  .vs {
-    font-size: 12px;
+  .scoreboard {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .score-num {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--navy);
+    min-width: 22px;
+    text-align: center;
+  }
+  #score-a { color: var(--blue); }
+  #score-b { color: #ff0087; }
+  .score-sep {
+    font-size: 14px;
     font-weight: 700;
     color: var(--muted);
-    text-transform: uppercase;
   }
   .board {
     display: grid;
@@ -334,7 +348,11 @@
         <span class="player-name">Player A</span>
         <span class="you-badge" id="you-a" style="display:none;">You</span>
       </div>
-      <div class="vs">vs</div>
+      <div class="scoreboard">
+        <span class="score-num" id="score-a">0</span>
+        <span class="score-sep">–</span>
+        <span class="score-num" id="score-b">0</span>
+      </div>
       <div class="player-chip" id="chip-b">
         <svg class="player-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg>
         <span class="player-name">Player B</span>
@@ -415,6 +433,8 @@ const chipA = document.getElementById("chip-a");
 const chipB = document.getElementById("chip-b");
 const youA = document.getElementById("you-a");
 const youB = document.getElementById("you-b");
+const scoreA = document.getElementById("score-a");
+const scoreB = document.getElementById("score-b");
 
 function playerName(symbol) {
   return symbol === "X" ? "Player A" : "Player B";
@@ -423,6 +443,13 @@ function playerName(symbol) {
 function setupMatchup() {
   youA.style.display = mySymbol === "X" ? "inline" : "none";
   youB.style.display = mySymbol === "O" ? "inline" : "none";
+  scoreA.textContent = "0";
+  scoreB.textContent = "0";
+}
+
+function updateScore(score) {
+  scoreA.textContent = score.X;
+  scoreB.textContent = score.O;
 }
 
 function updateTurnHighlight(turn) {
@@ -471,6 +498,7 @@ async function pollGameState() {
 
     renderBoard(s.board, !s.winner && s.turn === mySymbol && s.opponent_connected);
     updateTurnHighlight(s.winner ? null : s.turn);
+    updateScore(s.score);
 
     const opponentSymbol = mySymbol === "X" ? "O" : "X";
 
@@ -533,6 +561,8 @@ async function leaveGame() {
   chipB.classList.remove("active-turn");
   youA.style.display = "none";
   youB.style.display = "none";
+  scoreA.textContent = "0";
+  scoreB.textContent = "0";
   playEl.style.display = "none";
   lobbyEl.style.display = "block";
   findBtn.disabled = false;

@@ -166,8 +166,10 @@ def game_join(sid):
             GAME["games"][gid] = {
                 "board": [None] * 9,
                 "turn": "X",
+                "starter": "X",
                 "players": {opponent: "X", sid: "O"},
                 "winner": None,
+                "score": {"X": 0, "O": 0},
                 "last_seen": {opponent: now, sid: now},
             }
             GAME["player_game"][opponent] = gid
@@ -190,6 +192,7 @@ def game_state(sid, gid):
             "board": game["board"],
             "turn": game["turn"],
             "winner": game["winner"],
+            "score": game["score"],
             "symbol": game["players"][sid],
             "opponent_connected": opponent_connected,
         }
@@ -207,6 +210,8 @@ def game_move(sid, gid, index):
             return {"error": "invalid_move"}
         game["board"][index] = symbol
         game["winner"] = check_winner(game["board"])
+        if game["winner"] in ("X", "O"):
+            game["score"][game["winner"]] += 1
         game["turn"] = "O" if symbol == "X" else "X"
         game["last_seen"][sid] = time.time()
         return {"ok": True}
@@ -219,7 +224,8 @@ def game_reset(sid, gid):
             return {"error": "not_found"}
         game["board"] = [None] * 9
         game["winner"] = None
-        game["turn"] = "O" if game["turn"] == "X" else "X"
+        game["starter"] = "O" if game["starter"] == "X" else "X"
+        game["turn"] = game["starter"]
         game["last_seen"][sid] = time.time()
         return {"ok": True}
 
