@@ -32,6 +32,14 @@ Everything refreshes every second. No page reloads, no polling libraries — jus
 
 ---
 
+## 🎮 Tic-Tac-Toe, live
+
+Scroll down and you'll find a real, playable match — not against a bot, against whoever else happens to be watching the page at the same time as you. Click **Find opponent**, and the moment a second visitor does the same, you're matched and dropped into a live game.
+
+It runs on the same philosophy as everything else here: no websockets, no game server framework — just short-interval polling against a few extra endpoints, backed by in-memory state on `server.py`. Board state, turns, wins/draws, and disconnects are all handled server-side so both players always see the same truth.
+
+---
+
 ## ⚙️ How it works
 
 It's deliberately, almost stubbornly simple:
@@ -50,6 +58,7 @@ It's deliberately, almost stubbornly simple:
 - **`server.py`** — a `ThreadingHTTPServer` built entirely on Python's standard library. No Flask, no FastAPI, no `pip install` anything. It shells out to native macOS tools (`sysctl`, `vm_stat`, `df`, `netstat`) to read real hardware/OS state, parses the output, and serves it as JSON at `/api/stats`.
 - **`index.html`** — a single self-contained page (styles, markup, and script all inline) that polls `/api/stats` once a second and updates the DOM. No frameworks, no build step, no `node_modules`.
 - **Visitor tracking** — a lightweight cookie-based session system counts concurrent viewers and total visitors in memory. Sessions expire after 5 seconds of inactivity, so "watching live" actually means *live*.
+- **Live matchmaking** — a waiting-room slot pairs up the first two visitors who click "Find opponent" into a game, keyed by the same session cookie. Moves, turns, and win detection all live server-side; the client just renders whatever the server says is true.
 
 That's the whole stack. It's the kind of project that fits in your head in one sitting.
 
@@ -88,6 +97,16 @@ GET /api/stats
   "visitor": { "your_number": 47, "concurrent": 3, "total": 812 }
 }
 ```
+
+Want to poke at the game directly?
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/game/join` | GET | Join the matchmaking queue, or fetch your current match if already paired |
+| `/api/game/state?game_id=...` | GET | Poll the current board, turn, winner, and opponent presence |
+| `/api/game/move` | POST `{game_id, index}` | Place your mark on cell `0`–`8` |
+| `/api/game/reset` | POST `{game_id}` | Start a new round with the same opponent |
+| `/api/game/leave` | POST `{game_id}` | Leave the match and free up the queue |
 
 ---
 

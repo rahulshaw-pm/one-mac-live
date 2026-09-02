@@ -1,11 +1,13 @@
 import json
 import re
 import subprocess
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 
 INDEX_HTML = (Path(__file__).parent / "index.html").read_text()
 
@@ -13,6 +15,16 @@ STATE = {
     "total_visitors": 0,
     "sessions": {},
     "last_net": None,
+}
+
+WIN_LINES = [(0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7), (2, 5, 8), (0, 4, 8), (2, 4, 6)]
+OPPONENT_TIMEOUT = 6  # seconds without a poll before we consider a player gone
+
+GAME_LOCK = threading.Lock()
+GAME = {
+    "waiting": None,       # sid of a player waiting for an opponent
+    "player_game": {},     # sid -> game_id
+    "games": {},           # game_id -> game state
 }
 
 
@@ -117,6 +129,111 @@ def get_visitor(session_id):
     }
 
 
+def check_winner(board):
+    for a, b, c in WIN_LINES:
+        if board[a] and board[a] == board[b] == board[c]:
+            return board[a]
+    return "draw" if all(board) else None
+
+
+def _cleanup_stale_game(gid):
+    game = GAME["games"].get(gid)
+    if not game:
+        return
+    now = time.time()
+    for sid in list(game["players"]):
+        if now - game["last_seen"].get(sid, 0) > OPPONENT_TIMEOUT * 3:
+            GAME["games"].pop(gid, None)
+            for s in list(game["players"]):
+                if GAME["player_game"].get(s) == gid:
+                    GAME["player_game"].pop(s, None)
+            return
+
+
+def game_join(sid):
+    with GAME_LOCK:
+        gid = GAME["player_game"].get(sid)
+        if gid and gid in GAME["games"]:
+            game = GAME["games"][gid]
+            game["last_seen"][sid] = time.time()
+            return {"status": "matched", "game_id": gid, "symbol": game["players"][sid]}
+
+        if GAME["waiting"] and GAME["waiting"] != sid:
+            opponent = GAME["waiting"]
+            GAME["waiting"] = None
+            gid = uuid.uuid4().hex
+            now = time.time()
+            GAME["games"][gid] = {
+                "board": [None] * 9,
+                "turn": "X",
+                "players": {opponent: "X", sid: "O"},
+                "winner": None,
+                "last_seen": {opponent: now, sid: now},
+            }
+            GAME["player_game"][opponent] = gid
+            GAME["player_game"][sid] = gid
+            return {"status": "matched", "game_id": gid, "symbol": "O"}
+
+        GAME["waiting"] = sid
+        return {"status": "waiting"}
+
+
+def game_state(sid, gid):
+    with GAME_LOCK:
+        game = GAME["games"].get(gid)
+        if not game or sid not in game["players"]:
+            return {"error": "not_found"}
+        game["last_seen"][sid] = time.time()
+        opponent = next(s for s in game["players"] if s != sid)
+        opponent_connected = (time.time() - game["last_seen"].get(opponent, 0)) < OPPONENT_TIMEOUT
+        return {
+            "board": game["board"],
+            "turn": game["turn"],
+            "winner": game["winner"],
+            "symbol": game["players"][sid],
+            "opponent_connected": opponent_connected,
+        }
+
+
+def game_move(sid, gid, index):
+    with GAME_LOCK:
+        game = GAME["games"].get(gid)
+        if not game or sid not in game["players"]:
+            return {"error": "not_found"}
+        symbol = game["players"][sid]
+        if game["winner"] is not None or game["turn"] != symbol:
+            return {"error": "not_your_turn"}
+        if not isinstance(index, int) or not (0 <= index <= 8) or game["board"][index]:
+            return {"error": "invalid_move"}
+        game["board"][index] = symbol
+        game["winner"] = check_winner(game["board"])
+        game["turn"] = "O" if symbol == "X" else "X"
+        game["last_seen"][sid] = time.time()
+        return {"ok": True}
+
+
+def game_reset(sid, gid):
+    with GAME_LOCK:
+        game = GAME["games"].get(gid)
+        if not game or sid not in game["players"]:
+            return {"error": "not_found"}
+        game["board"] = [None] * 9
+        game["winner"] = None
+        game["turn"] = "O" if game["turn"] == "X" else "X"
+        game["last_seen"][sid] = time.time()
+        return {"ok": True}
+
+
+def game_leave(sid):
+    with GAME_LOCK:
+        if GAME["waiting"] == sid:
+            GAME["waiting"] = None
+        gid = GAME["player_game"].pop(sid, None)
+        if gid:
+            _cleanup_stale_game(gid)
+        return {"ok": True}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
@@ -128,8 +245,32 @@ class Handler(BaseHTTPRequestHandler):
         new_sid = uuid.uuid4().hex
         return new_sid, new_sid
 
+    def _send_json(self, payload, new_sid):
+        body = json.dumps(payload).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        if new_sid:
+            self.send_header("Set-Cookie", f"sid={new_sid}; Path=/; HttpOnly")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         sid, new_sid = self._session_id()
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
+
+        if path == "/api/game/join":
+            self._send_json(game_join(sid), new_sid)
+            return
+
+        if path == "/api/game/state":
+            gid = query.get("game_id", [None])[0]
+            self._send_json(game_state(sid, gid), new_sid)
+            return
+
+        self.path = path  # normalize for the legacy checks below
 
         if self.path == "/api/stats":
             body = json.dumps({
@@ -159,6 +300,31 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Set-Cookie", f"sid={new_sid}; Path=/; HttpOnly")
             self.end_headers()
             self.wfile.write(body)
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self):
+        sid, new_sid = self._session_id()
+        path = urlparse(self.path).path
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        raw = self.rfile.read(length) if length else b""
+        try:
+            data = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            data = {}
+
+        if path == "/api/game/move":
+            self._send_json(game_move(sid, data.get("game_id"), data.get("index")), new_sid)
+            return
+
+        if path == "/api/game/reset":
+            self._send_json(game_reset(sid, data.get("game_id")), new_sid)
+            return
+
+        if path == "/api/game/leave":
+            self._send_json(game_leave(sid), new_sid)
             return
 
         self.send_response(404)

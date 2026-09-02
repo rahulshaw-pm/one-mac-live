@@ -161,6 +161,73 @@
     color: var(--muted);
     font-size: 12px;
   }
+
+  .game-section {
+    max-width: 900px;
+    margin: 32px auto 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid;
+    border-image: var(--accent-grad) 1;
+    border-radius: 10px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .game-section h2 {
+    margin: 4px 0 6px;
+    font-size: 18px;
+    color: var(--navy);
+  }
+  .game-status {
+    color: var(--muted);
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 18px;
+  }
+  .game-status.win { color: #00a86b; font-weight: 600; }
+  .game-status.lose { color: #ff0057; font-weight: 600; }
+  .game-btn {
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    background: var(--accent-grad);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    cursor: pointer;
+  }
+  .game-btn:disabled { opacity: 0.5; cursor: default; }
+  .game-btn.secondary {
+    background: none;
+    color: var(--navy);
+    border: 1px solid var(--border);
+  }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 74px);
+    grid-template-rows: repeat(3, 74px);
+    gap: 8px;
+    justify-content: center;
+    margin: 0 auto 18px;
+  }
+  .cell {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--navy);
+    cursor: pointer;
+  }
+  .cell:disabled { cursor: default; }
+  .cell.x { color: var(--blue); }
+  .cell.o { color: #ff0087; }
+  .game-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
 </style>
 
 <header>
@@ -214,6 +281,23 @@
   <div class="visitor-side">Total visitors<b id="total">—</b></div>
 </div>
 
+<div class="game-section">
+  <h2>🎮 Tic-Tac-Toe, Live</h2>
+  <div class="game-status" id="game-status">Play a quick match against whoever else is watching this page right now.</div>
+
+  <div id="game-lobby">
+    <button class="game-btn" id="find-btn" onclick="findOpponent()">Find opponent</button>
+  </div>
+
+  <div id="game-play" style="display:none;">
+    <div class="board" id="board"></div>
+    <div class="game-controls">
+      <button class="game-btn secondary" id="again-btn" style="display:none;" onclick="playAgain()">Play again</button>
+      <button class="game-btn secondary" onclick="leaveGame()">Leave match</button>
+    </div>
+  </div>
+</div>
+
 <footer>Refreshes every second.</footer>
 
 <script>
@@ -263,4 +347,119 @@ async function tick() {
 
 tick();
 setInterval(tick, 1000);
+
+// --- Tic-Tac-Toe, live between visitors ---
+let gameId = null;
+let mySymbol = null;
+let joinTimer = null;
+let stateTimer = null;
+
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("game-status");
+const lobbyEl = document.getElementById("game-lobby");
+const playEl = document.getElementById("game-play");
+const findBtn = document.getElementById("find-btn");
+const againBtn = document.getElementById("again-btn");
+
+function renderBoard(cells, clickable) {
+  boardEl.innerHTML = "";
+  cells.forEach((val, i) => {
+    const btn = document.createElement("button");
+    btn.className = "cell" + (val === "X" ? " x" : val === "O" ? " o" : "");
+    btn.textContent = val || "";
+    btn.disabled = !clickable || !!val;
+    btn.onclick = () => makeMove(i);
+    boardEl.appendChild(btn);
+  });
+}
+
+async function findOpponent() {
+  findBtn.disabled = true;
+  statusEl.className = "game-status";
+  statusEl.textContent = "Looking for another visitor to play against…";
+  joinTimer = setInterval(async () => {
+    const res = await fetch("/api/game/join", { cache: "no-store" });
+    const s = await res.json();
+    if (s.status === "matched") {
+      clearInterval(joinTimer);
+      gameId = s.game_id;
+      mySymbol = s.symbol;
+      lobbyEl.style.display = "none";
+      playEl.style.display = "block";
+      pollGameState();
+      stateTimer = setInterval(pollGameState, 1000);
+    }
+  }, 1200);
+}
+
+async function pollGameState() {
+  if (!gameId) return;
+  try {
+    const res = await fetch(`/api/game/state?game_id=${gameId}`, { cache: "no-store" });
+    const s = await res.json();
+    if (s.error) return;
+
+    renderBoard(s.board, !s.winner && s.turn === mySymbol && s.opponent_connected);
+
+    if (s.winner === "draw") {
+      statusEl.className = "game-status";
+      statusEl.textContent = "It's a draw!";
+      againBtn.style.display = "inline-block";
+    } else if (s.winner) {
+      const won = s.winner === mySymbol;
+      statusEl.className = "game-status " + (won ? "win" : "lose");
+      statusEl.textContent = won ? "You win! 🎉" : "You lose — opponent got three in a row.";
+      againBtn.style.display = "inline-block";
+    } else if (!s.opponent_connected) {
+      statusEl.className = "game-status";
+      statusEl.textContent = "Opponent disconnected. Leave and find a new match.";
+      againBtn.style.display = "none";
+    } else {
+      statusEl.className = "game-status";
+      statusEl.textContent = s.turn === mySymbol
+        ? `Your turn — you're ${mySymbol}`
+        : `Waiting on opponent (${s.turn === "X" ? "X" : "O"})…`;
+      againBtn.style.display = "none";
+    }
+  } catch (e) {
+    // next tick will retry
+  }
+}
+
+async function makeMove(index) {
+  if (!gameId) return;
+  await fetch("/api/game/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ game_id: gameId, index }),
+  });
+  pollGameState();
+}
+
+async function playAgain() {
+  if (!gameId) return;
+  await fetch("/api/game/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ game_id: gameId }),
+  });
+  againBtn.style.display = "none";
+  pollGameState();
+}
+
+async function leaveGame() {
+  clearInterval(joinTimer);
+  clearInterval(stateTimer);
+  if (gameId) {
+    fetch("/api/game/leave", { method: "POST" });
+  }
+  gameId = null;
+  mySymbol = null;
+  boardEl.innerHTML = "";
+  playEl.style.display = "none";
+  lobbyEl.style.display = "block";
+  findBtn.disabled = false;
+  statusEl.className = "game-status";
+  statusEl.textContent = "Play a quick match against whoever else is watching this page right now.";
+}
 </script>
