@@ -10,9 +10,25 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 INDEX_HTML = (Path(__file__).parent / "index.html").read_text()
+VISITS_FILE = Path(__file__).parent / "visits.count"
+VISITS_LOCK = threading.Lock()
+
+
+def load_total_visits():
+    try:
+        return int(VISITS_FILE.read_text().strip())
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
+def save_total_visits(n):
+    tmp = VISITS_FILE.with_suffix(".tmp")
+    tmp.write_text(str(n))
+    tmp.replace(VISITS_FILE)
+
 
 STATE = {
-    "total_visitors": 0,
+    "total_visitors": load_total_visits(),
     "sessions": {},
     "last_net": None,
 }
@@ -113,7 +129,9 @@ def get_visitor(session_id):
     now = time.time()
     sessions = STATE["sessions"]
     if session_id not in sessions:
-        STATE["total_visitors"] += 1
+        with VISITS_LOCK:
+            STATE["total_visitors"] += 1
+            save_total_visits(STATE["total_visitors"])
         sessions[session_id] = {"number": STATE["total_visitors"], "last_seen": now}
     else:
         sessions[session_id]["last_seen"] = now
